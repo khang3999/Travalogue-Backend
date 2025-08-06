@@ -1,4 +1,3 @@
-from typing import List
 from firebase_admin import db as firebase_db
 from firebase_admin import storage
 import os
@@ -20,13 +19,10 @@ import os
 def get_all_tours():
     tour_ref = firebase_db.reference("tours/")
     data = tour_ref.get()
-    # list_tours = []
     if not data:
         print("No data found in tours/")
         # Xu lí json fail ở day
         return {}
-    # print(List(data))
-    # list_tours = List(data.values())
     return data
 
 
@@ -71,3 +67,12 @@ def get_model_and_scaler(file_path_model, file_path_scaler):
         blob_scaler.download_to_filename(file_path_scaler)
         return True
     return False
+
+def get_tour_by_id(tour_id: str):
+    tour_ref = firebase_db.reference(f"tours/{tour_id}")
+    data = tour_ref.get()
+    if not data:
+        print(f"No data found for tour ID: {tour_id}")
+        return None
+    return data
+

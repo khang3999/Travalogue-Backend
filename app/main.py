@@ -6,7 +6,7 @@ from app.routers import tour, test
 app = FastAPI(
     title="Tour API with Firebase",
     version="1.0.0",
-    description="API cho hệ thống tour du lịch sử dụng Firebase Realtime Database"
+    description="API cho hệ thống tour du lịch sử dụng Firebase Realtime Database",
 )
 
 firebase_db = init_firebase()
@@ -19,6 +19,12 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+def read_root():
+    return {"message": "hello world"}
+
 
 app.include_router(test.router)
 app.include_router(tour.router)
