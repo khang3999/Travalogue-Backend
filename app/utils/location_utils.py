@@ -1,7 +1,7 @@
 from typing import List
 
 
-def extract_city_ids(locations: dict) -> List[str]:
+def flatten_location(locations: dict) -> List[str]:
     """
     Chuyển thành danh sach city_ids từ locations.
     """
