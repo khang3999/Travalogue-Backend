@@ -1,73 +1,70 @@
-import os
 from typing import List
-from dotenv import load_dotenv
-from fastapi import HTTPException
-from app.repositories import tour_repository
+from app.repositories.tour_repository import TourRepository
 from app.models.model_loader import ModelLoaderSingleton
 from app.utils.tour_utils import (
-    extract_list_tour_data,
-    calculate_related_tours,
-    calculate_related_tours_1,
-    extract_tour_data,
-    predict_score,
+    create_feature,
 )
 
-
-load_dotenv()
-
-model_path = os.getenv("FILE_MODEL_PATH")
-scaler_path = os.getenv("FILE_SCALER_PATH")
+tour_repository = TourRepository()
 
 
-def get_all_tours() -> List[dict]:
-    # rs = tour_repository.get_all_tours()
-    return tour_repository.get_all_tours()
-    # return list(rs.values()) if rs else []
+def get_all_tours():
+    return tour_repository.get_all()
 
 
-def get_related_tours(behavior_locations: List[str]):
+def get_related_tours(behaviors: List[str]):
     # Tạo danh features từ danh sách tour
-    list_tours = tour_repository.get_all_tours()
-    list_extracted = extract_list_tour_data(list(list_tours.values()))
+    all_tours_json = tour_repository.get_all()
+    all_tours_array = list(all_tours_json.values())
 
-    # Load model and scaler
-    loader = ModelLoaderSingleton(model_path, scaler_path)
-    model, scaler = loader.get_model_and_scaler()
+    # Tạo tập dữ liệu features (X) cho mô hình dự đoán là mảng 2d
+    features_list = []
+    for tour in all_tours_array:
+        feature = create_feature(tour, behaviors)
+        features_list.append(feature)
 
-    # Tính toán và sắp xếp các id tour theo thứ tự liên quan
-    ids_sorted = calculate_related_tours(
-        list_extracted, behavior_locations, model, scaler
-    )
+    model_loader = ModelLoaderSingleton()
+    model = model_loader.get_model()
+    
+    probs = model.predict_proba(features_list)
+    # print(probs)
+    fit_probs = [prob[1] for prob in probs]
+    
+    # Ghép lại thành list các cặp (xác suất, tour)
+    paired = list(zip(fit_probs, all_tours_array))
+    
+    # Sắp xếp theo xác suất giảm dần
+    paired_sorted = sorted(paired, key=lambda x: x[0], reverse=True)
+    sorted_tours = [p[1] for p in paired_sorted]
 
-    sorted_list_tours = [{**list_tours[i]} for i in ids_sorted if i in list_tours]
-    return sorted_list_tours
-
-
-def calculate_related_score(tour_id, behavior_locations: List[str]) -> float:
-    tour = tour_repository.get_tour_by_id(tour_id)
-    if tour is None:
-        raise HTTPException(status_code=404, detail="Tour not found")
-    extracted_data = extract_tour_data(tour)
-    loader = ModelLoaderSingleton(model_path, scaler_path)
-    model, scaler = loader.get_model_and_scaler()
-    return {
-        "id": tour_id,
-        "locations": extracted_data.locations,
-        "behavior_locations": behavior_locations,
-        "rating": extracted_data.rating,
-        "related_score": predict_score(
-            extracted_data, behavior_locations, model, scaler
-        ),
-    }
+    return sorted_tours
 
 
-def sort_list_tours_by_score(behavior_locations: List[str]):
-    list_tours = tour_repository.get_all_tours()
-    list_extracted = extract_list_tour_data(list(list_tours.values()))
+# def calculate_related_score(tour_id, behavior_locations: List[str]) -> float:
+#     tour = tour_repository.get_tour_by_id(tour_id)
+#     if tour is None:
+#         raise HTTPException(status_code=404, detail="Tour not found")
+#     extracted_data = extract_tour_data(tour)
+#     loader = ModelLoaderSingleton(model_path, scaler_path)
+#     model, scaler = loader.get_model_and_scaler()
+#     return {
+#         "id": tour_id,
+#         "locations": extracted_data.locations,
+#         "behavior_locations": behavior_locations,
+#         "rating": extracted_data.rating,
+#         "related_score": predict_score(
+#             extracted_data, behavior_locations, model, scaler
+#         ),
+#     }
 
-    loader = ModelLoaderSingleton(model_path, scaler_path)
-    model, scaler = loader.get_model_and_scaler()
-    list_result = calculate_related_tours_1(
-        list_extracted, behavior_locations, model, scaler
-    )
-    return list_result
+
+# def sort_list_tours_by_score(behavior_locations: List[str]):
+#     list_tours = tour_repository.get_all_tours()
+#     list_extracted = extract_list_tour_data(list(list_tours.values()))
+
+#     loader = ModelLoaderSingleton(model_path, scaler_path)
+#     model, scaler = loader.get_model_and_scaler()
+#     list_result = calculate_related_tours_1(
+#         list_extracted, behavior_locations, model, scaler
+#     )
+#     return list_result
